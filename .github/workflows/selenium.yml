@@ -72,11 +72,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Pull OWASP ZAP Image
+        run: |
+          docker pull zaproxy/zap-stable
+
       - name: Start Full ZAP Scan
         run: |
           docker run --rm --network=bridge \
             -v $(pwd):/zap/wrk \
-            owasp/zap2docker-stable \
+            zaproxy/zap-stable \
             zap-full-scan.py -t ${{ env.URL }} -r zap_full_report.html
 
       - name: Upload Full Security Report
