@@ -1,0 +1,71 @@
+name: Selenium Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:10.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: damncrud
+          MYSQL_USER: user
+          MYSQL_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root --password=root || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip curl php php-mysqli php-cli apache2
+          python -m pip install --upgrade pip
+          pip install selenium
+
+      - name: Start Apache Server
+        run: |
+          sudo cp -r . /var/www/html/DamnCRUD-main
+          sudo chown -R www-data:www-data /var/www/html/DamnCRUD-main
+          sudo systemctl restart apache2
+          sudo systemctl enable apache2
+
+      - name: Wait for MariaDB to be ready
+        run: |
+          for i in {1..30}; do
+            if mysql -h 127.0.0.1 --protocol=tcp -u root --password=root -e 'SELECT 1' &> /dev/null; then
+              echo "MariaDB is ready!"
+              exit 0
+            fi
+            echo "Waiting for MariaDB..."
+            sleep 2
+          done
+          echo "MariaDB did not start in time" >&2
+          exit 1
+
+      - name: Import database schema
+        run: |
+          mysql -h 127.0.0.1 --protocol=tcp -u root --password=root damncrud < db/damncrud.sql
+
+      - name: Start Selenium Grid
+        run: |
+          docker run -d -p 4444:4444 --name selenium-grid selenium/standalo
