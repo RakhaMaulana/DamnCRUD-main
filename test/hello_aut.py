@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import logging
 import os
+import tempfile
 
 # Menonaktifkan pesan log DevTools dan error
 options = Options()
@@ -19,7 +20,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
 # Inisialisasi WebDriver dengan opsi tambahan
-driver = webdriver.Chrome(options=options)
+with tempfile.TemporaryDirectory() as user_data_dir:
+    options.add_argument(f"--user-data-dir={user_data_dir}")
+    driver = webdriver.Chrome(options=options)
 
 driver.get("http://localhost/DamnCRUD-main/login.php")
 
@@ -29,9 +32,11 @@ def browser():
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
     options.add_argument("--log-level=3")
     options.add_argument("--disable-gpu")
-    driver = webdriver.Chrome(options=options)
-    yield driver
-    driver.quit()
+    with tempfile.TemporaryDirectory() as user_data_dir:
+        options.add_argument(f"--user-data-dir={user_data_dir}")
+        driver = webdriver.Chrome(options=options)
+        yield driver
+        driver.quit()
 
 def test_login_valid(browser):
     browser.get("http://localhost/DamnCRUD-main/login.php")
