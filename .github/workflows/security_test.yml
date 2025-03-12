@@ -6,8 +6,68 @@ on:
       - main
 
 jobs:
+  functional-test:
+    name: Functional Test
+    permissions: write-all
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+
+      - name: Create isolated network
+        run: docker network create isolated
+
+      - name: Deploy AUT
+        run: docker build -t my-php-site:latest .
+
+      - name: Run AUT
+        run: docker run --network=isolated -p 80:80 --name docker-apache -d my-php-site:latest
+
+      - name: Get AUT URL
+        run: |
+          echo "URL=http://localhost" >> $GITHUB_ENV
+
+      - name: Check AUT URL
+        run: curl ${{ env.URL }}
+
+      - name: Start Selenium Grid
+        run: |
+          docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium selenium/standalone-firefox:latest
+
+      - name: Wait for Selenium Grid
+        run: |
+          for i in {1..40}; do
+            if curl -s http://localhost:4444/wd/hub/status | jq -e '.value.ready == true' &> /dev/null; then
+              echo "Selenium Grid is ready!"
+              exit 0
+            fi
+            echo "Waiting for Selenium Grid..."
+            sleep 5
+          done
+          echo "Selenium Grid did not start in time" >&2
+          docker logs selenium
+          exit 1
+
+      - name: Install dependencies
+        run: |
+          pip install -U selenium pytest pytest-xdist
+
+      - name: Run Selenium Tests
+        run: python test/hello_aut.py ${{ env.URL }}
+
+      - name: Upload Screenshot Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Screenshot
+          path: screenshot.png
+
+      - name: Stop AUT
+        run: docker stop docker-apache
+
   dast-test:
     name: Security Test (DAST)
+    needs: functional-test
     runs-on: ubuntu-latest
 
     steps:
