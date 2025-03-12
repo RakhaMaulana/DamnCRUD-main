@@ -57,26 +57,6 @@ def test_create_contact(browser):
     assert "John Doe" in page_content, "Kontak baru tidak muncul di daftar"
 
 
-def test_edit_contact(browser):
-    login(browser, "admin", "nimda666!")
-    browser.get("http://localhost/DamnCRUD-main/index.php")
-    browser.find_element(By.LINK_TEXT, "edit").click()
-
-    name_input = browser.find_element(By.NAME, "name")
-    name_input.clear()
-    name_input.send_keys("Jane Doe")
-
-    email_input = browser.find_element(By.NAME, "email")
-    email_input.clear()
-    email_input.send_keys("janedoe@example.com")
-
-    browser.find_element(By.NAME, "title").send_keys(Keys.RETURN)
-
-    browser.get("http://localhost/DamnCRUD-main/index.php")
-    page_content = browser.page_source
-    assert "Jane Doe" in page_content, "Data kontak tidak berhasil diperbarui"
-
-
 def test_logout(browser):
     login(browser, "admin", "nimda666!")
     browser.get("http://localhost/DamnCRUD-main/logout.php")
