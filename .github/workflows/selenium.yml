@@ -42,7 +42,7 @@ jobs:
         run: pip install -U selenium
 
       - name: Run test
-        run: python tests/hello_aut.py ${{ env.URL }}
+        run: python test/hello_aut.py ${{ env.URL }}
 
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
