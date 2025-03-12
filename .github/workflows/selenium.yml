@@ -92,13 +92,13 @@ jobs:
           exit 1
 
       - name: Verify Pytest Test Discovery
-        run: pytest DamnCRUD-main/test/ --collect-only
+        run: pytest test/ --collect-only
 
       - name: List Test Directory (Debugging)
-        run: ls -R DamnCRUD-main/test/
+        run: ls -R test/
 
       - name: Run Selenium Tests
-        run: pytest DamnCRUD-main/test/test_selenium.py --maxfail=1 --disable-warnings -v
+        run: pytest test/test_selenium.py --maxfail=1 --disable-warnings -n 4 -v
 
       - name: Debug Selenium Grid Logs on Failure
         if: failure()
