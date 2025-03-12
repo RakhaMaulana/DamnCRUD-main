@@ -72,28 +72,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Start ZAP Scanner
+      - name: Start Full ZAP Scan
         run: |
-          docker run -d --network=bridge --name zap -p 8080:8080 -p 8090:8090 zaproxy/zap-stable zap.sh -daemon -port 8090 -host 0.0.0.0 -config api.addrs.addr.name="*" -config api.addrs.addr.regex=true
+          docker run --rm --network=bridge \
+            -v $(pwd):/zap/wrk \
+            owasp/zap2docker-stable \
+            zap-full-scan.py -t ${{ env.URL }} -r zap_full_report.html
 
-      - name: Wait for ZAP
-        run: sleep 30
-
-      - name: Run Passive Scan
-        run: |
-          docker exec zap zap-cli quick-scan --self-contained --start-options "-config api.disablekey=true" ${{ env.URL }}
-
-      - name: Run Active Scan
-        run: |
-          docker exec zap zap-cli active-scan --self-contained ${{ env.URL }}
-
-      - name: Save ZAP Report
-        run: |
-          docker exec zap zap-cli report -o /zap/wrk/zap_report.html -f html
-          docker cp zap:/zap/wrk/zap_report.html .
-
-      - name: Upload Security Report
+      - name: Upload Full Security Report
         uses: actions/upload-artifact@v4
         with:
-          name: ZAP Report
-          path: zap_report.html
+          name: ZAP Full Scan Report
+          path: zap_full_report.html
