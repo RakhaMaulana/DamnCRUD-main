@@ -17,7 +17,7 @@ jobs:
         ports:
           - 3306:3306
         options: >
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root --password=root"
+          --health-cmd=mysqladmin ping -h 127.0.0.1 -u root --password=root
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
@@ -47,7 +47,7 @@ jobs:
     - name: Wait for MariaDB to be ready
       run: |
         for i in {1..30}; do
-          if mysql -h 127.0.0.1 -u root --password=root -e 'SELECT 1' &> /dev/null; then
+          if mysql -h 127.0.0.1 --protocol=tcp -u root --password=root -e 'SELECT 1' &> /dev/null; then
             echo "MariaDB is ready!"
             exit 0
           fi
@@ -59,12 +59,24 @@ jobs:
 
     - name: Import database schema
       run: |
-        mysql -h 127.0.0.1 -u root --password=root damncrud < db/damncrud.sql
+        mysql -h 127.0.0.1 --protocol=tcp -u root --password=root damncrud < db/damncrud.sql
 
     - name: Run Selenium Grid (Standalone Firefox)
       run: |
         docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-firefox
-        sleep 5  # Tunggu sebentar agar Selenium Grid siap
+
+    - name: Wait for Selenium Grid to be ready
+      run: |
+        for i in {1..30}; do
+          if curl -s http://localhost:4444/wd/hub/status | grep '"ready":true' &> /dev/null; then
+            echo "Selenium Grid is ready!"
+            exit 0
+          fi
+          echo "Waiting for Selenium Grid..."
+          sleep 2
+        done
+        echo "Selenium Grid did not start in time" >&2
+        exit 1
 
     - name: Run tests in parallel
       run: |
