@@ -15,32 +15,25 @@ jobs:
       - name: Checkout the repo
         uses: actions/checkout@v4
 
-      - name: Deploy AUT (Application Under Test)
+      - name: Create isolated network
+        run: docker network create isolated
+
+      - name: Deploy AUT
         run: docker build -t my-php-site:latest .
 
       - name: Run AUT
-        run: |
-          docker run -p 80:80 --name docker-apache -d my-php-site:latest
-
-      - name: Wait for AUT to be ready
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost | grep -q "Welcome"; then
-              echo "AUT is ready!"
-              exit 0
-            fi
-            echo "Waiting for AUT..."
-            sleep 5
-          done
-          echo "AUT did not start in time" >&2
-          exit 1
+        run: docker run --network=isolated -p 80:80 --name docker-apache -d my-php-site:latest
 
       - name: Get AUT URL
-        run: echo "URL=http://localhost" >> $GITHUB_ENV
+        run: |
+          echo "URL=http://localhost" >> $GITHUB_ENV
+
+      - name: Check AUT URL
+        run: curl ${{ env.URL }}
 
       - name: Start Selenium Grid
         run: |
-          docker run -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium selenium/standalone-firefox:latest
+          docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium selenium/standalone-firefox:latest
 
       - name: Wait for Selenium Grid
         run: |
@@ -74,43 +67,27 @@ jobs:
 
 
   dast-test:
-    name: Security Test (DAST)
-    needs: functional-test
-    runs-on: ubuntu-latest
+          name: Security Test (DAST)
+          needs: functional-test
+          runs-on: ubuntu-latest
 
-    steps:
-      - name: Deploy AUT (Application Under Test)
-        run: docker build -t my-php-site:latest .
+          steps:
+            - name: Create isolated network
+              run: docker network create isolated
 
-      - name: Run AUT
-        run: |
-          docker run -p 80:80 --name docker-apache -d my-php-site:latest
+            - name: Pull OWASP ZAP Image
+              run: docker pull zaproxy/zap-stable
 
-      - name: Wait for AUT to be ready
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost | grep -q "Welcome"; then
-              echo "AUT is ready!"
-              exit 0
-            fi
-            echo "Waiting for AUT..."
-            sleep 5
-          done
-          echo "AUT did not start in time" >&2
-          exit 1
+            - name: Start Full ZAP Scan
+              run: |
+                docker run --rm --network=isolated \
+                  -v $(pwd)/zap-reports:/zap/wrk \
+                  zaproxy/zap-stable \
+                  zap-full-scan.py -t http://docker-apache -r zap_full_report.html
 
-      - name: Pull OWASP ZAP Image
-        run: docker pull zaproxy/zap-stable
 
-      - name: Start Full ZAP Scan
-        run: |
-          docker run --rm \
-            -v $(pwd)/zap-reports:/zap/wrk \
-            zaproxy/zap-stable \
-            zap-full-scan.py -t http://localhost:80 -r zap_full_report.html
-
-      - name: Upload Full Security Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: ZAP Full Scan Report
-          path: zap_full_report.html
+            - name: Upload Full Security Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: ZAP Full Scan Report
+                path: zap_full_report.html
