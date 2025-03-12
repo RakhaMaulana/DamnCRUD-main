@@ -65,6 +65,7 @@ jobs:
 
       - name: Stop AUT
         run: docker stop docker-apache
+
   dast-test:
     name: Security Test (DAST)
     needs: functional-test
@@ -73,7 +74,7 @@ jobs:
     steps:
       - name: Start ZAP Scanner
         run: |
-          docker run -d --network=isolated --name zap -p 8080:8080 -p 8090:8090 zaproxy/zap-stable zap.sh -daemon -port 8090 -host 0.0.0.0 -config api.addrs.addr.name="*" -config api.addrs.addr.regex=true
+          docker run -d --network=bridge --name zap -p 8080:8080 -p 8090:8090 zaproxy/zap-stable zap.sh -daemon -port 8090 -host 0.0.0.0 -config api.addrs.addr.name="*" -config api.addrs.addr.regex=true
 
       - name: Wait for ZAP
         run: sleep 30
