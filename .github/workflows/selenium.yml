@@ -15,20 +15,17 @@ jobs:
       - name: Checkout the repo
         uses: actions/checkout@v4
 
-      - name: Create isolated network
-        run: docker network create isolated
-
       - name: Deploy AUT (Application Under Test)
         run: docker build -t my-php-site:latest .
 
       - name: Run AUT
         run: |
-          docker run --network=isolated -p 80:80 --name docker-apache -d my-php-site:latest
+          docker run -p 80:80 --name docker-apache -d my-php-site:latest
 
       - name: Wait for AUT to be ready
         run: |
           for i in {1..30}; do
-            if curl -s http://docker-apache | grep -q "Welcome"; then
+            if curl -s http://localhost | grep -q "Welcome"; then
               echo "AUT is ready!"
               exit 0
             fi
@@ -39,11 +36,11 @@ jobs:
           exit 1
 
       - name: Get AUT URL
-        run: echo "URL=http://docker-apache" >> $GITHUB_ENV
+        run: echo "URL=http://localhost" >> $GITHUB_ENV
 
       - name: Start Selenium Grid
         run: |
-          docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium selenium/standalone-firefox:latest
+          docker run -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium selenium/standalone-firefox:latest
 
       - name: Wait for Selenium Grid
         run: |
@@ -82,20 +79,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create isolated network
-        run: docker network create isolated
-
       - name: Deploy AUT (Application Under Test)
         run: docker build -t my-php-site:latest .
 
       - name: Run AUT
         run: |
-          docker run --network=isolated -p 80:80 --name docker-apache -d my-php-site:latest
+          docker run -p 80:80 --name docker-apache -d my-php-site:latest
 
       - name: Wait for AUT to be ready
         run: |
           for i in {1..30}; do
-            if curl -s http://docker-apache | grep -q "Welcome"; then
+            if curl -s http://localhost | grep -q "Welcome"; then
               echo "AUT is ready!"
               exit 0
             fi
@@ -110,10 +104,10 @@ jobs:
 
       - name: Start Full ZAP Scan
         run: |
-          docker run --rm --network=isolated \
+          docker run --rm \
             -v $(pwd)/zap-reports:/zap/wrk \
             zaproxy/zap-stable \
-            zap-full-scan.py -t http://docker-apache:80 -r zap_full_report.html
+            zap-full-scan.py -t http://localhost:80 -r zap_full_report.html
 
       - name: Upload Full Security Report
         uses: actions/upload-artifact@v4
