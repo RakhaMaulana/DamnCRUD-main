@@ -19,13 +19,6 @@ options.add_argument("--disable-gpu")  # Matikan GPU rendering (opsional)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
-# Inisialisasi WebDriver dengan opsi tambahan
-with tempfile.TemporaryDirectory() as user_data_dir:
-    options.add_argument(f"--user-data-dir={user_data_dir}")
-    driver = webdriver.Chrome(options=options)
-
-driver.get("http://localhost/DamnCRUD-main/login.php")
-
 @pytest.fixture(scope="module")
 def browser():
     options = Options()
