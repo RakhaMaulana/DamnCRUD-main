@@ -55,7 +55,7 @@ jobs:
           pip install -U selenium pytest pytest-xdist
 
       - name: Run Selenium Tests
-        run: python tests/hello_aut.py ${{ env.URL }}
+        run: python test/hello_aut.py ${{ env.URL }}
 
       - name: Upload Screenshot Artifacts
         uses: actions/upload-artifact@v4
