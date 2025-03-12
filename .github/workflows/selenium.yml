@@ -71,6 +71,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create isolated network
+        run: docker network create isolated
+
       - name: Pull OWASP ZAP Image
         run: |
           docker pull zaproxy/zap-stable
