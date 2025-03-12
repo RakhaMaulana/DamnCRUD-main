@@ -81,9 +81,10 @@ jobs:
             - name: Start Full ZAP Scan
               run: |
                 docker run --rm --network=isolated \
-                  -v $(pwd):/zap/wrk \
+                  -v $(pwd)/zap-reports:/zap/wrk \
                   zaproxy/zap-stable \
                   zap-full-scan.py -t http://docker-apache -r zap_full_report.html
+
 
             - name: Upload Full Security Report
               uses: actions/upload-artifact@v4

@@ -3,40 +3,32 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-import logging
-import os
-import tempfile
 
-# Menonaktifkan pesan log DevTools dan error
+# Konfigurasi WebDriver
 options = Options()
-options.add_experimental_option("excludeSwitches", ["enable-logging"])  # Hilangkan DevTools message
-options.add_argument("--log-level=3")  # Log hanya error penting
-options.add_argument("--disable-gpu")  # Matikan GPU rendering (opsional)
-
-# Menonaktifkan pesan error terminal dari TensorFlow Lite dan perangkat USB
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-logging.getLogger('tensorflow').setLevel(logging.FATAL)
+options.add_argument("--headless")  # Jalankan dalam mode headless (opsional)
+options.add_argument("--disable-gpu")
+options.add_argument("--log-level=3")  # Hanya log penting
 
 @pytest.fixture(scope="module")
 def browser():
-    options = Options()
-    options.add_experimental_option("excludeSwitches", ["enable-logging"])
-    options.add_argument("--log-level=3")
-    options.add_argument("--disable-gpu")
-    with tempfile.TemporaryDirectory() as user_data_dir:
-        options.add_argument(f"--user-data-dir={user_data_dir}")
-        driver = webdriver.Chrome(options=options)
-        yield driver
-        driver.quit()
+    driver = webdriver.Chrome(options=options)
+    yield driver
+    driver.quit()
+
+def print_result(test_name, result):
+    status = "✅" if result else "❌"
+    print(f"{status} {test_name} - {'PASS' if result else 'FAIL'}")
 
 def test_login_valid(browser):
     browser.get("http://localhost/DamnCRUD-main/login.php")
     browser.find_element(By.NAME, "username").send_keys("admin")
     browser.find_element(By.NAME, "password").send_keys("nimda666!" + Keys.RETURN)
     time.sleep(2)
-    assert "index.php" in browser.current_url, "Gagal login dengan kredensial valid"
+    result = "index.php" in browser.current_url
+    print_result("Test 1: Login dengan kredensial valid", result)
+    assert result
 
 def test_login_invalid(browser):
     browser.get("http://localhost/DamnCRUD-main/login.php")
@@ -44,7 +36,9 @@ def test_login_invalid(browser):
     browser.find_element(By.NAME, "password").send_keys("wrongpass" + Keys.RETURN)
     time.sleep(2)
     error_message = browser.find_element(By.TAG_NAME, "body").text
-    assert "Damn, wrong credentials!!" in error_message, "Pesan error tidak muncul saat login gagal"
+    result = "Damn, wrong credentials!!" in error_message
+    print_result("Test 2: Login dengan kredensial salah", result)
+    assert result
 
 def test_create_contact(browser):
     test_login_valid(browser)
@@ -60,7 +54,9 @@ def test_create_contact(browser):
 
     browser.get("http://localhost/DamnCRUD-main/index.php")
     page_content = browser.page_source
-    assert "John Doe" in page_content, "Kontak baru tidak muncul di daftar"
+    result = "John Doe" in page_content
+    print_result("Test 3: Membuat kontak baru", result)
+    assert result
 
 def test_edit_contact(browser):
     test_login_valid(browser)
@@ -83,10 +79,14 @@ def test_edit_contact(browser):
 
     browser.get("http://localhost/DamnCRUD-main/index.php")
     page_content = browser.page_source
-    assert "Jane Doe" in page_content, "Data kontak tidak berhasil diperbarui"
+    result = "Jane Doe" in page_content
+    print_result("Test 4: Mengedit kontak", result)
+    assert result
 
 def test_logout(browser):
     test_login_valid(browser)
     browser.get("http://localhost/DamnCRUD-main/logout.php")
     time.sleep(2)
-    assert "login.php" in browser.current_url, "Logout gagal, tidak dialihkan ke login.php"
+    result = "login.php" in browser.current_url
+    print_result("Test 5: Logout dari aplikasi", result)
+    assert result
