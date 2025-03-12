@@ -34,7 +34,7 @@ jobs:
 
       - name: Start Selenium Grid
         run: |
-          docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium firefox-standalone selenium/standalone-firefox:latest
+          docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name selenium selenium/standalone-firefox:latest
 
       - name: Wait for Selenium Grid
         run: |
