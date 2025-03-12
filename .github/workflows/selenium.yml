@@ -68,4 +68,5 @@ jobs:
 
       - name: Start Selenium Grid
         run: |
-          docker run -d -p 4444:4444 --name selenium-grid selenium/standalo
+          docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-chrome
+
