@@ -7,12 +7,17 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import logging
 import os
+import tempfile
 
 # Menonaktifkan pesan log DevTools dan error
 options = Options()
 options.add_experimental_option("excludeSwitches", ["enable-logging"])  # Hilangkan DevTools message
 options.add_argument("--log-level=3")  # Log hanya error penting
 options.add_argument("--disable-gpu")  # Matikan GPU rendering (opsional)
+
+# Menambahkan argumen user-data-dir dengan nilai unik
+user_data_dir = tempfile.mkdtemp()
+options.add_argument(f"--user-data-dir={user_data_dir}")
 
 # Menonaktifkan pesan error terminal dari TensorFlow Lite dan perangkat USB
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -29,6 +34,8 @@ def browser():
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
     options.add_argument("--log-level=3")
     options.add_argument("--disable-gpu")
+    user_data_dir = tempfile.mkdtemp()
+    options.add_argument(f"--user-data-dir={user_data_dir}")
     driver = webdriver.Chrome(options=options)
     yield driver
     driver.quit()
