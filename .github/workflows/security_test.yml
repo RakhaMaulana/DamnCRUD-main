@@ -18,8 +18,13 @@ jobs:
         run: docker build -t my-php-site:latest .
 
       - name: Run AUT
-        run: |
-          docker run -p 80:80 --name docker-apache -d my-php-site:latest
+        run: docker run -p 80:80 --name docker-apache -d my-php-site:latest
+
+      - name: Check Running Containers
+        run: docker ps -a
+
+      - name: Debug Docker Logs
+        run: docker logs docker-apache
 
       - name: Wait for AUT to be ready
         run: |
