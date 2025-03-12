@@ -92,7 +92,7 @@ jobs:
           exit 1
 
       - name: Run Selenium Tests
-        run: pytest -n 2 test/
+        run: pytest -n 2 --maxfail=1 --disable-warnings DamnCRUD-main/test/
 
       - name: Debug Selenium Grid Logs on Failure
         if: failure()
