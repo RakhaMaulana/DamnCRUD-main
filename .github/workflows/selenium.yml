@@ -1,140 +1,54 @@
-name: CI/CD with Selenium & DAST
-
+name: Functional Testing
 on:
   push:
     branches:
       - main
-  pull_request:
-
 jobs:
   test:
+    name: Functional Test
+    permissions: write-all
     runs-on: ubuntu-latest
-
-    services:
-      mariadb:
-        image: mariadb:10.4
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: damncrud
-          MYSQL_USER: user
-          MYSQL_PASSWORD: password
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 --password=root || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
-      - name: Check out code
+      - name: Checkout the repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - name: Create isolated network
+        run: docker network create --driver bridge isolated
 
-      - name: Install dependencies
+      - name: Deploy AUT
+        run: docker build -t my-php-site:latest .
+
+      - name: Run AUT
+        run: docker run --network=isolated -p 80:80 --name docker-apache -t -d my-php-site:latest
+
+      - name: Get AUT URL
         run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip curl php php-mysqli php-cli apache2 jq
-          python -m pip install --upgrade pip
-          pip install selenium pytest pytest-xdist
+          URL=http://$(ip -f inet -o addr show docker0 | awk '{print $4}' | cut -d '/' -f 1)
+          echo "URL=$URL" >> $GITHUB_ENV
 
-      - name: Start Apache Server
-        run: |
-          sudo cp -r . /var/www/html/DamnCRUD-main
-          sudo chown -R www-data:www-data /var/www/html/DamnCRUD-main
-          sudo systemctl restart apache2
-          sudo systemctl enable apache2
+      - name: Check AUT URL
+        run: curl ${{ env.URL }}
 
-      - name: Wait for MariaDB to be ready
-        run: |
-          for i in {1..40}; do
-            if mysql -h 127.0.0.1 --protocol=tcp -u root --password=root -e 'SHOW DATABASES;' &> /dev/null; then
-              echo "MariaDB is ready!"
-              exit 0
-            fi
-            echo "Waiting for MariaDB..."
-            sleep 2
-          done
-          echo "MariaDB did not start in time" >&2
-          exit 1
+      - name: Selenium Preparation
+        run: docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name firefox-standalone selenium/standalone-firefox:latest
 
-      - name: Import database schema
-        run: |
-          mysql -h 127.0.0.1 --protocol=tcp -u root --password=root damncrud < db/damncrud.sql
+      - name: Wait for Selenium Hub
+        run: sh wait.sh
 
-      - name: Wait for Apache to be ready
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost/DamnCRUD-main/login.php &> /dev/null; then
-              echo "Apache is ready!"
-              exit 0
-            fi
-            echo "Waiting for Apache..."
-            sleep 2
-          done
-          echo "Apache did not start in time" >&2
-          exit 1
+      - name: Check the Hub
+        run: curl http://localhost:4444/ui
 
-      - name: Debug Apache Accessibility
-        run: |
-          curl -v http://localhost/DamnCRUD-main/login.php || echo "Apache not accessible"
+      - name: Install Selenium client
+        run: pip install -U selenium
 
-      - name: Start Selenium Grid
-        run: |
-          docker run -d --network=host --name selenium-grid selenium/standalone-chrome:latest
-          sleep 10
+      - name: Run test
+        run: python tests/hello_aut.py ${{ env.URL }}
 
-      - name: Debug Running Containers
-        run: docker ps -a
-
-      - name: Check Selenium Logs if Fails
-        run: docker logs selenium-grid || true
-
-      - name: Wait for Selenium Grid to be ready
-        run: |
-          for i in {1..40}; do
-            if curl -s http://localhost:4444/wd/hub/status | jq -e '.value.ready == true' &> /dev/null; then
-              echo "Selenium Grid is ready!"
-              exit 0
-            fi
-            echo "Waiting for Selenium Grid..."
-            sleep 5
-          done
-          echo "Selenium Grid did not start in time" >&2
-          docker logs selenium-grid
-          exit 1
-
-      - name: Verify Pytest Test Discovery
-        run: pytest test/ --collect-only
-
-      - name: List Test Directory (Debugging)
-        run: ls -R test/
-
-      - name: Run Selenium Tests
-        run: pytest test/test_selenium.py --maxfail=1 --disable-warnings -n 4 -v
-
-      - name: Debug Selenium Grid Logs on Failure
-        if: failure()
-        run: docker logs selenium-grid || true
-
-  dast:
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Start OWASP ZAP Security Scan
-        run: |
-          docker run --network=host -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost/DamnCRUD-main -r zap_report.html || true
-
-      - name: Upload OWASP ZAP Report
+      - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
         with:
-          name: ZAP Security Report
-          path: zap_report.html
+          name: Screenshot
+          path: screenshot.png
+
+      - name: stop docker
+        run: docker stop docker-apache
