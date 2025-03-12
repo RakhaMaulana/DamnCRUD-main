@@ -1,4 +1,4 @@
-name: Selenium Tests
+name: CI/CD with Selenium & DAST
 
 on:
   push:
@@ -40,7 +40,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wget unzip curl php php-mysqli php-cli apache2
           python -m pip install --upgrade pip
-          pip install pytest pytest-xdist selenium
+          pip install selenium pytest pytest-xdist
 
       - name: Start Apache Server
         run: |
@@ -68,7 +68,14 @@ jobs:
 
       - name: Start Selenium Grid
         run: |
-          docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-chrome
+          docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-chrome:4.1.4
+          sleep 10
+
+      - name: Debug Running Containers
+        run: docker ps -a
+
+      - name: Check Port Usage
+        run: netstat -tulnp | grep 4444 || true
 
       - name: Wait for Selenium Grid to be ready
         run: |
@@ -78,11 +85,31 @@ jobs:
               exit 0
             fi
             echo "Waiting for Selenium Grid..."
-            sleep 2
+            sleep 5
           done
           echo "Selenium Grid did not start in time" >&2
           exit 1
 
-      - name: Run Selenium tests with Pytest
+      - name: Run Selenium Tests
+        run: pytest -n 2 test/
+
+      - name: Debug Selenium Grid Logs
+        run: docker logs selenium-grid || true
+
+  dast:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Start OWASP ZAP Security Scan
         run: |
-          pytest -n 4 test/
+          docker run -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost/DamnCRUD-main -r zap_report.html || true
+
+      - name: Upload OWASP ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZAP Security Report
+          path: zap_report.html
