@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip curl php php-mysqli php-cli apache2
+          sudo apt-get install -y wget unzip curl php php-mysqli php-cli apache2 jq
           python -m pip install --upgrade pip
           pip install selenium pytest pytest-xdist
 
@@ -49,10 +49,10 @@ jobs:
           sudo systemctl restart apache2
           sudo systemctl enable apache2
 
-      - name: Wait for MariaDB to be ready
+      - name: Wait for MariaDB to be fully ready
         run: |
-          for i in {1..30}; do
-            if mysql -h 127.0.0.1 --protocol=tcp -u root --password=root -e 'SELECT 1' &> /dev/null; then
+          for i in {1..40}; do
+            if mysql -h 127.0.0.1 --protocol=tcp -u root --password=root -e 'SHOW DATABASES;' &> /dev/null; then
               echo "MariaDB is ready!"
               exit 0
             fi
@@ -79,9 +79,13 @@ jobs:
           echo "Apache did not start in time" >&2
           exit 1
 
+      - name: Debug Apache Accessibility
+        run: |
+          curl -v http://localhost/DamnCRUD-main/login.php || echo "Apache not accessible"
+
       - name: Start Selenium Grid
         run: |
-          docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-chrome:latest
+          docker run -d --network=host --name selenium-grid selenium/standalone-chrome:latest
           sleep 10
 
       - name: Debug Running Containers
@@ -127,7 +131,7 @@ jobs:
 
       - name: Start OWASP ZAP Security Scan
         run: |
-          docker run -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost/DamnCRUD-main -r zap_report.html || true
+          docker run --network=host -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost/DamnCRUD-main -r zap_report.html || true
 
       - name: Upload OWASP ZAP Report
         uses: actions/upload-artifact@v4
