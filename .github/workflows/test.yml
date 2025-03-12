@@ -27,20 +27,17 @@ jobs:
       with:
         python-version: '3.9'
 
-    - name: Install Firefox and Geckodriver
+    - name: Install Google Chrome and ChromeDriver
       run: |
         sudo apt-get update
-        sudo apt-get remove -y firefox snapd  # Hapus Snap dan Firefox bawaan
-        sudo add-apt-repository -y ppa:mozillateam/ppa
-        echo 'Package: *' | sudo tee /etc/apt/preferences.d/mozilla-firefox
-        echo 'Pin: release o=LP-PPA-mozillateam' | sudo tee -a /etc/apt/preferences.d/mozilla-firefox
-        echo 'Pin-Priority: 1001' | sudo tee -a /etc/apt/preferences.d/mozilla-firefox
-        sudo apt-get update
-        sudo apt-get install -y firefox
-        wget -q https://github.com/mozilla/geckodriver/releases/latest/download/geckodriver-linux64.tar.gz
-        tar -xzf geckodriver-linux64.tar.gz
-        sudo mv geckodriver /usr/local/bin/
-
+        sudo apt-get install -y wget unzip curl
+        sudo apt-get install -y google-chrome-stable
+        CHROME_VERSION=$(google-chrome --version | grep -oP '[0-9.]+' | head -1)
+        CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
+        wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+        unzip chromedriver_linux64.zip
+        sudo mv chromedriver /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
 
     - name: Install Selenium and Pytest
       run: |
@@ -64,9 +61,9 @@ jobs:
       run: |
         mysql -h 127.0.0.1 --protocol=tcp -u root --password=root damncrud < db/damncrud.sql
 
-    - name: Run Selenium Grid (Standalone Firefox)
+    - name: Run Selenium Grid (Standalone Chrome)
       run: |
-        docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-firefox
+        docker run -d -p 4444:4444 --name selenium-grid selenium/standalone-chrome
 
     - name: Wait for Selenium Grid to be ready
       run: |

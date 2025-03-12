@@ -1,7 +1,6 @@
 import unittest
 import time
 import os
-import logging
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -9,12 +8,15 @@ from selenium.webdriver.common.keys import Keys
 class DamnCRUDTest(unittest.TestCase):
 
     def setUp(self):
-        options = webdriver.FirefoxOptions()
-        options.add_argument('--ignore-ssl-errors=yes')
-        options.add_argument('--ignore-certificate-errors')
-        server = 'http://localhost:4444'
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
 
-        self.browser = webdriver.Remote(command_executor=server, options=options)
+        self.browser = webdriver.Remote(
+            command_executor='http://localhost:4444/wd/hub',
+            options=options
+        )
         self.addCleanup(self.browser.quit)
 
     def test_login_valid(self):
