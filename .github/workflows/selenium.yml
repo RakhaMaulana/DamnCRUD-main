@@ -49,7 +49,7 @@ jobs:
           sudo systemctl restart apache2
           sudo systemctl enable apache2
 
-      - name: Wait for MariaDB to be fully ready
+      - name: Wait for MariaDB to be ready
         run: |
           for i in {1..40}; do
             if mysql -h 127.0.0.1 --protocol=tcp -u root --password=root -e 'SHOW DATABASES;' &> /dev/null; then
